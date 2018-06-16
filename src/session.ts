@@ -26,7 +26,7 @@ export class Session {
 				case 'open': {
 					this._sTS.setPath((call.data as Api.CommandOpen).path).then(() => {
 						this.reply(call.command, 'ok', {sessionID: this._id});
-						this._sTS.logMessage(`session opened with id ${this._id}`, 'info', 'client');
+						this._sTS.logMessage(`session opened with id ${this._id}`, 'info', 'server');
 					}).catch(() => {
 						this.reply(call.command, 'error');
 					});
@@ -34,7 +34,7 @@ export class Session {
 				}
 				case 'close': {
 					this.reply(call.command, 'ok');
-					this._sTS.logMessage(`session closed from client`, 'info', 'client');
+					this._sTS.logMessage(`session closed from admin`, 'info', 'admin');
 					this.socket.close();
 					break;
 				}
@@ -42,15 +42,35 @@ export class Session {
 					this.reply(call.command, 'ok', this._sTS.getCalls());
 					break;
 				}
-				case 'getCallData':
-				break;
+				case 'getCallData': {
+					const callId = call.data as number;
+					const apiCall = this._sTS.getCalls().find(c => c.id === callId);
+					if (!apiCall) {
+						this._sTS.logMessage(`Call With id ${callId} not found`, 'error', 'admin');
+						this.reply(call.command, 'error');
+						return;
+					}
+					this.reply(call.command, 'ok', apiCall);
+					break;
+				}
 				case 'updatePath':
 				break;
-				case 'updateCallData':
-				break;
+				case 'updateCallData': {
+					const newData = call.data as Api.CommandUpdateCallData;
+					const apiCall = this._sTS.getCalls().find(c => c.id === newData.callId);
+					if (!apiCall) {
+						this._sTS.logMessage(`Call With id ${newData.callId} not found`, 'error', 'admin');
+						this.reply(call.command, 'error');
+						return;
+					}
+					apiCall.jsonData = newData.config;
+					this._sTS.logMessage(`update CallData for call ${newData.callId}`, 'info', 'admin');
+					this.reply(call.command, 'ok');
+					break;
+				}
 			}
 		} catch (e) {
-			this._sTS.logMessage(`unknown command ${e}`, 'error', 'client');
+			this._sTS.logMessage(`unknown command ${e}`, 'error', 'admin');
 		}
 	}
 

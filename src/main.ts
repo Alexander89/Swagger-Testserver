@@ -78,6 +78,6 @@ wss.on('connection', (socket: WebSocket) => {
 });
 
 server.listen(8111, () => {
-	console.info(`Server started on port ${(server.address() as AddressInfo).port}`);
+	console.log(`Server started on port ${(server.address() as AddressInfo).port}`);
 });
 
