@@ -22,6 +22,8 @@
     "watch-debug": "concurrently -k -p \"[{name}]\" -n \"Sass,TypeScript,Node\" -c \"yellow.bold,cyan.bold,green.bold\" \"npm run watch-sass\" \"npm run watch-ts\" \"npm run serve-debug\""
   },
   "dependencies": {
+    "@types/mysql": "^2.15.5",
+    "mysql": "^2.15.0",
     "node-ts": "^2.1.2",
     "tslint": "^5.10.0",
     "typescript": "^2.9.1",

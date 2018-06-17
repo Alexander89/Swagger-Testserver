@@ -4,19 +4,35 @@ import * as WebSocket from 'ws';
 import { SwaggerTestServer } from './swagger-test-server';
 import { Data } from 'ws';
 import { CallData, ReturnSchema } from 'test-server';
-import * as S from './models/swagger/swagger';
+import { DbStorage, server } from './main';
 import { isArray } from 'util';
 
+declare var db: DbStorage;
+export interface SessionData {
+	id: string;
+	calls: Array<CallData>;
+}
 
 export class Session {
 	static sessionId = 0;
-	private _id: number;
+	private _id: string;
 	protected _sTS = new SwaggerTestServer(this);
+	private messageListener = ((data: any) => this.onMessage(data));
 
-	constructor(private readonly socket: WebSocket) {
-		this._id = Session.sessionId++;
-		socket.on('message', data => this.onMessage(data));
-		socket.send('o');
+	constructor(private socket: WebSocket) {
+		this._id = `${Session.sessionId++}`;
+		this.assignSocket(socket);
+		if (socket) {
+			socket.send('o');
+		}
+	}
+
+	public assignSocket(socket: WebSocket) {
+		if (socket) {
+			this.socket = socket;
+
+			socket.on('message', this.messageListener);
+		}
 	}
 
 	private onMessage(data: Data) {
@@ -57,6 +73,9 @@ export class Session {
 				break;
 				case 'updateCallData': {
 					const newData = call.data as Api.CommandUpdateCallData;
+					if (!this._sTS.getCalls()) {
+						this.reply(call.command, 'error');
+					}
 					const apiCall = this._sTS.getCalls().find(c => c.id === newData.callId);
 					if (!apiCall) {
 						this._sTS.logMessage(`Call With id ${newData.callId} not found`, 'error', 'admin');
@@ -66,6 +85,30 @@ export class Session {
 					apiCall.jsonData = newData.config;
 					this._sTS.logMessage(`update CallData for call ${newData.callId}`, 'info', 'admin');
 					this.reply(call.command, 'ok');
+					if (this.id.match(/[a-z]{1,}/)){
+						db.updateSession(this);
+					}
+					break;
+				}
+				case 'setSessionName': {
+					this._id = call.data as string;
+					db.addSession(this).then(
+						() => this.reply(call.command, 'ok')
+					).catch(
+						e => this.reply(call.command, 'error')
+					);
+					break;
+				}
+				case 'changeSession': {
+					const session = server.getSession(call.data as string);
+					if (session) {
+						console.log(session.id);
+						this.socket.removeListener('message', this.messageListener);
+						session.assignSocket(this.socket);
+						this.reply(call.command, 'ok', session._sTS.getCalls());
+					} else {
+						this.reply(call.command, 'error');
+					}
 					break;
 				}
 			}
@@ -89,11 +132,14 @@ export class Session {
 			} as Api.EventMessage
 		} as Api.Command);
 	}
+
 	private send(reply: Api.Command): void {
-		this.socket.send(JSON.stringify(reply));
+		if (this.socket) {
+			this.socket.send(JSON.stringify(reply));
+		}
 	}
 
-	get id(): number { return this._id; }
+	get id(): string { return this._id; }
 }
 
 export class CallSession extends Session {
@@ -102,6 +148,12 @@ export class CallSession extends Session {
 	}
 
 	public handleCall(request: Http.IncomingMessage, response: Http.ServerResponse): void {
+		if (!this._sTS.getCalls()) {
+			response.statusCode = 404;
+			response.statusMessage = 'Definition Not Found';
+			response.end();
+			return;
+		}
 		const url = request.url;
 		const sessionCut = url.indexOf('/', 1);
 		const query = url.substr(sessionCut);

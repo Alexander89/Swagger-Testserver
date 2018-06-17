@@ -5,8 +5,6 @@ import { Session } from './session';
 import { MessageLvl, EventTypes, CallData, ReturnSchema } from 'test-server';
 
 export class SwaggerTestServer extends Logging {
-	/** swagger definition instance */
-	private def: S.Root;
 	/** array of all pre-processed callData */
 	private _calls = [] as Array<CallData>;
 
@@ -123,10 +121,10 @@ export class SwaggerTestServer extends Logging {
 	 */
 	private parseJson(def: any): boolean {
 		try {
-			this.def = SwaggerTestServer.resolveRef(def as S.Root);
-			Object.getOwnPropertyNames(this.def.paths).forEach(call => {
-				Object.getOwnPropertyNames(this.def.paths[call]).forEach(method => {
-					this._calls.push(this.preparedCall(method, call));
+			const SwaggerDef = SwaggerTestServer.resolveRef(def as S.Root);
+			Object.getOwnPropertyNames(SwaggerDef.paths).forEach(call => {
+				Object.getOwnPropertyNames(SwaggerDef.paths[call]).forEach(method => {
+					this._calls.push(this.preparedCall(SwaggerDef, method, call));
 				});
 			});
 			console.log(JSON.stringify(this._calls, null, 4));
@@ -140,8 +138,8 @@ export class SwaggerTestServer extends Logging {
 	 * @param method method of the call
 	 * @param callName Call definition name to pick it up from the object
 	 */
-	private preparedCall(method: string, callName: string): CallData {
-		const call = this.def.paths[callName][method];
+	private preparedCall(def: S.Root, method: string, callName: string): CallData {
+		const call = def.paths[callName][method];
 
 		const availableResponses = Object.getOwnPropertyNames(call.responses);
 

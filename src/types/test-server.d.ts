@@ -1,8 +1,9 @@
 import { Call } from '../models/swagger/calls';
+import { DbStorage } from '../main';
 
 declare namespace TestServerApi {
-	type AvailableCommands =  'open' | 'close' | 'getCalls' | 'getCallData' | 'updatePath' | 'updateCallData' | 'event' ;
-	type AvailableDataTypes = CommandOpen | ReplyOpen | CommandUpdatePath | CallData | CallData[] | CommandUpdateCallData | EventMessage | number | undefined;
+	type AvailableCommands =  'open' | 'close' | 'getCalls' | 'getCallData' | 'updatePath' | 'updateCallData' | 'event' | 'setSessionName' | 'changeSession';
+	type AvailableDataTypes = CommandOpen | ReplyOpen | CommandUpdatePath | CallData | CallData[] | CommandUpdateCallData | EventMessage | string | number | undefined;
 	type EventTypes = 'close' | 'admin' | 'client' | 'server' | undefined;
 	type MessageLvl = 'debug' | 'info' | 'warning' | 'error';
 
@@ -13,12 +14,11 @@ declare namespace TestServerApi {
 		replyState?: 'ok' | 'error';
 	}
 
-
 	interface CommandOpen {
 		path: string;
 	}
 	interface ReplyOpen {
-		sessionID: number;
+		sessionID: string;
 	}
 	interface CommandUpdatePath {
 		path: string;
@@ -32,8 +32,6 @@ declare namespace TestServerApi {
 		lvl: MessageLvl;
 		message: string;
 	}
-
-
 
 	interface ReturnSchema {
 		name: string;
