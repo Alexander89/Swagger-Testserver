@@ -9,7 +9,8 @@ services:
         - DB_Host=localhost
         - DB_Username=root
         - DB_Password=root
-        - DB_Database=SwaggerTest
+		- DB_Database=SwaggerTest
+		- DB_Port=3306
     user: "node"
     working_dir: /home/node/app
     ports:
