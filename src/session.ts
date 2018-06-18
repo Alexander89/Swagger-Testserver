@@ -15,6 +15,7 @@ export class Session {
 	private _id: string;
 	protected _sTS = new SwaggerTestServer(this);
 	private messageListener = ((data: any) => this.onMessage(data));
+	private closeListener = (() => this.onClose());
 
 	constructor(private socket: WebSocket) {
 		this._id = `${Session.sessionId++}`;
@@ -29,6 +30,7 @@ export class Session {
 			this.socket = socket;
 
 			socket.on('message', this.messageListener);
+			socket.on('close', this.closeListener);
 		}
 	}
 
@@ -101,6 +103,7 @@ export class Session {
 					if (session) {
 						console.log(session.id);
 						this.socket.removeListener('message', this.messageListener);
+						this.socket.removeListener('close', this.closeListener);
 						session.assignSocket(this.socket);
 						this.reply(call.command, 'ok', session._sTS.getCalls());
 					} else {
@@ -112,6 +115,15 @@ export class Session {
 		} catch (e) {
 			this._sTS.logMessage(`unknown command ${e}`, 'error', 'admin');
 		}
+	}
+
+	private onClose() {
+		// fixed sessions should not be closed
+		if (this.id.match(/[a-z]{1,}/i)) {
+			return;
+		}
+
+		server.removeSession(this.id);
 	}
 
 	public reply(command: Api.AvailableCommands, replyState: 'ok' | 'error' | undefined, data?: Api.AvailableDataTypes, eventType?: Api.EventTypes) {

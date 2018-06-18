@@ -32,6 +32,14 @@ export class ApiServer {
 	public getSession(name: string): CallSession {
 		return this.sessions.find(s => s.id === name);
 	}
+	public removeSession(name: string): boolean {
+		const session = this.getSession(name);
+		if (!session) {
+			return false;
+		}
+		this.sessions.splice(this.sessions.indexOf(session), 1);
+		return true;
+	}
 	private indexPage(response: Http.ServerResponse): void {
 		response.statusCode = 200;
 		response.statusMessage = 'Return Data';

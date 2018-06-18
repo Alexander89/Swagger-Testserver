@@ -8,9 +8,10 @@ ENV DB_Username root
 ENV DB_Password root
 ENV DB_Database SwaggerTest
 
-USER node
 
-COPY --chown=node:node . /home/node/app/
+COPY . /home/node/app/
+RUN chown node:node /home/node/app/
+USER node
 WORKDIR /home/node/app
 
 RUN npm install
