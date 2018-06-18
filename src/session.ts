@@ -4,14 +4,11 @@ import * as WebSocket from 'ws';
 import { SwaggerTestServer } from './swagger-test-server';
 import { Data } from 'ws';
 import { CallData, ReturnSchema } from 'test-server';
-import { DbStorage, server } from './main';
+import { DbStorage } from './api-server';
+import { server } from './main';
 import { isArray } from 'util';
 
 declare var db: DbStorage;
-export interface SessionData {
-	id: string;
-	calls: Array<CallData>;
-}
 
 export class Session {
 	static sessionId = 0;
@@ -85,7 +82,7 @@ export class Session {
 					apiCall.jsonData = newData.config;
 					this._sTS.logMessage(`update CallData for call ${newData.callId}`, 'info', 'admin');
 					this.reply(call.command, 'ok');
-					if (this.id.match(/[a-z]{1,}/)){
+					if (this.id.match(/[a-z]{1,}/)) {
 						db.updateSession(this);
 					}
 					break;

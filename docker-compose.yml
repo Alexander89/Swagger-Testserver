@@ -1,0 +1,27 @@
+version: '3.5'
+
+services:
+  SwaggerTestServer:
+    image: node:9.5-alpine
+    environment:
+        - Port=8111
+        - DB_Type=mySQL
+        - DB_Host=localhost
+        - DB_Username=root
+        - DB_Password=root
+        - DB_Database=SwaggerTest
+    user: "node"
+    working_dir: /home/node/app
+    ports:
+        - 8111:8111
+    volumes:
+        - ./:/home/node/app
+    expose:
+        - "8111"
+    networks:
+      - devNetwork
+    command: "npm run serve"
+
+networks:
+    devNetwork:
+        name: localDevNetwork

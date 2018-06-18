@@ -1,5 +1,5 @@
 import { Call } from '../models/swagger/calls';
-import { DbStorage } from '../main';
+import { DbStorage } from '../api-server';
 
 declare namespace TestServerApi {
 	type AvailableCommands =  'open' | 'close' | 'getCalls' | 'getCallData' | 'updatePath' | 'updateCallData' | 'event' | 'setSessionName' | 'changeSession';
