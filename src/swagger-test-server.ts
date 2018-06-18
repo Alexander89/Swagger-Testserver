@@ -127,7 +127,7 @@ export class SwaggerTestServer extends Logging {
 					this._calls.push(this.preparedCall(SwaggerDef, method, call));
 				});
 			});
-			console.log(JSON.stringify(this._calls, null, 4));
+			// console.log(JSON.stringify(this._calls, null, 4));
 			return true;
 		} catch (e) {
 			return false;

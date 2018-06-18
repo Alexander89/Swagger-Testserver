@@ -1,6 +1,7 @@
 import * as Http from 'http';
 import * as WebSocket from 'ws';
 import * as mySQL from 'mysql';
+import * as postgres from 'pg';
 
 import { Server as WsServer } from 'ws';
 import { AddressInfo } from 'net';
@@ -30,7 +31,10 @@ export class ApiServer {
 	}
 
 	public getSession(name: string): CallSession {
-		return this.sessions.find(s => s.id === name);
+		return this.sessions.find(s => {
+			console.log(s.id + ' === ' + name);
+			return s.id === name;
+		});
 	}
 	public removeSession(name: string): boolean {
 		const session = this.getSession(name);
@@ -106,34 +110,50 @@ export class DbStorage {
 	private _enable: boolean;
 	private _ready = false;
 	private _mySQLConnection: mySQL.Connection;
+	private _pgConnection: postgres.Client;
 
 	constructor(private readonly apiServer: ApiServer) {
 		(global as any).db = this;
-		this._enable = (process.env.DB_Type === 'mySQL' &&
+		this._enable = ((process.env.DB_Type === 'mySQL' || process.env.DB_Type === 'postgres') &&
 			process.env.DB_Host !== undefined &&
 			process.env.DB_Username !== undefined &&
 			process.env.DB_Password !== undefined &&
 			process.env.DB_Database !== undefined);
 
-		console.log('db is ' + this._enable);
+		console.log('db is valid: ' + this._enable);
 		if (!this._enable) {
 			return;
 		}
 		if (process.env.DB_Type === 'mySQL') {
 			this._mySQLConnection = mySQL.createConnection({
 				host: process.env.DB_Host,
+				port: +process.env.DB_Port,
 				user: process.env.DB_Username,
 				password: process.env.DB_Password,
 			});
 
 			this._mySQLConnection.connect(() => {
-				console.log('connected');
 				this._ready = true;
 				this.createDatabase();
 				this.readExistingSessions();
 			});
 			this._mySQLConnection.on('error', (err) => {
 				console.log(err.message);
+			});
+		} else if (process.env.DB_Type === 'postgres') {
+			this._pgConnection = new postgres.Client({
+				host: process.env.DB_Host,
+				port: +process.env.DB_Port,
+				user: process.env.DB_Username,
+				password: process.env.DB_Password,
+				database: process.env.DB_Database
+			});
+			this._pgConnection.connect().then(() => {
+				this._ready = true;
+				this.createDatabase();
+				this.readExistingSessions();
+			}).catch((e) => {
+				console.error('can not connect to the postgres database ' + e);
 			});
 		}
 	}
@@ -143,15 +163,14 @@ export class DbStorage {
 			if (!this._ready) {
 				return;
 			}
-
-			this._mySQLConnection.query(
-				`INSERT INTO st_sessions (sessionName, calls) VALUES ('${session.id}', '${JSON.stringify((session as any)._sTS._calls)}');`,
-				(e) => {
+			const con = process.env.DB_Type === 'mySQL' ? this._mySQLConnection : this._pgConnection;
+			(con as any).query(
+				`INSERT INTO st_sessions (sessionname, calls) VALUES ('${session.id}', '${JSON.stringify((session as any)._sTS._calls)}');`,
+				(e: any) => {
 					if (e) {
-						reject(e.message);
-					} else {
-						resolve();
+						return reject(e.message);
 					}
+					resolve();
 				}
 			);
 		});
@@ -162,17 +181,17 @@ export class DbStorage {
 			if (!this._ready) {
 				return;
 			}
-
-			this._mySQLConnection.query(
-				`UPDATE st_sessions SET calls='${JSON.stringify((session as any)._sTS._calls)}' WHERE sessionName=${session.id};`,
-				(e) => {
+			const con = process.env.DB_Type === 'mySQL' ? this._mySQLConnection : this._pgConnection;
+			(con as any).query(
+				`UPDATE st_sessions SET calls='${JSON.stringify((session as any)._sTS._calls)}' WHERE sessionname='${session.id}';`,
+				(e: any) => {
 					if (e) {
-						reject(e.message);
-					} else {
-						resolve();
+						return reject(e.message);
 					}
+					resolve();
 				}
 			);
+
 		});
 	}
 
@@ -180,28 +199,41 @@ export class DbStorage {
 		if (!this._ready) {
 			return;
 		}
-		console.log('createDatabase');
+
+
 		if (process.env.DB_Type === 'mySQL') {
+			const createTableQuery = `CREATE TABLE st_sessions (
+				id INT(11) unsigned NOT NULL AUTO_INCREMENT,
+				sessionname VARCHAR(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '',
+				calls LONGTEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+				deleted INT(1) unsigned NOT NULL DEFAULT 0,
+				created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				lastChange DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (id)
+			  ) DEFAULT CHARSET=utf8;`;
+
 			this._mySQLConnection.query(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_Database};`, (error) => {
 				console.log('CREATE DATABASE' + error);
 			});
 			this._mySQLConnection.query(`USE ${process.env.DB_Database};`, (error) => {
 				console.log('DATABASE ' + error);
 			});
-			this._mySQLConnection.query(
-				`CREATE TABLE st_sessions (
-					id INT(11) unsigned NOT NULL AUTO_INCREMENT,
-					sessionName VARCHAR(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '',
-					calls LONGTEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-					deleted INT(1) unsigned NOT NULL DEFAULT 0,
-					created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-					lastChange DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-					PRIMARY KEY (id)
-				  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;`,
-				(error) => {
-					console.log('CREATE TABLE' + error);
-				}
-			);
+			this._mySQLConnection.query(createTableQuery, (error) => {
+				console.log('CREATE TABLE' + error);
+			});
+		} else if (process.env.DB_Type === 'postgres') {
+			const createTableQuery = `CREATE TABLE st_sessions (
+				id SERIAL PRIMARY KEY,
+				sessionname varchar(100) NOT NULL,
+				calls text NOT NULL,
+				deleted smallint NOT NULL DEFAULT 0,
+				created timestamp NOT NULL DEFAULT current_timestamp,
+				lastChange timestamp NOT NULL DEFAULT current_timestamp
+			  );`;
+
+			this._pgConnection.query(createTableQuery, (error) => {
+				console.log('CREATE TABLE' + error);
+			});
 		}
 	}
 
@@ -210,19 +242,31 @@ export class DbStorage {
 			return;
 		}
 
+		const parseResult = (rows: Array<{sessionname: string, calls: string}>) => {
+			rows.forEach(row => {
+				const newSession = new CallSession(undefined) as any;
+				newSession._id = row.sessionname;
+				newSession._sTS._calls = JSON.parse(row.calls) as Array<CallData>;
+				(this.apiServer as any).sessions.push(newSession);
+			});
+		};
+
+		const sqlQuery = 'select sessionname, calls from st_Sessions where deleted = 0';
 		if (process.env.DB_Type === 'mySQL') {
-			this._mySQLConnection.query('select sessionName, calls from st_Sessions where deleted = false', (err: mySQL.MysqlError | null, results) => {
+			this._mySQLConnection.query(sqlQuery, (err, results) => {
 				if (err) {
 					console.log('mySql error: ' + err.message);
 					return;
 				}
-
-				(results as Array<{sessionName: string, calls: string}>).forEach(row => {
-					const newSession = new CallSession(undefined) as any;
-					newSession._id = row.sessionName;
-					newSession._sTS._calls = JSON.parse(row.calls) as Array<CallData>;
-					(this.apiServer as any).sessions.push(newSession);
-				});
+				parseResult(results);
+			});
+		} else if (process.env.DB_Type === 'postgres') {
+			this._pgConnection.query(sqlQuery, (err, results) => {
+				if (err) {
+					console.log('postgres error: ' + err.message);
+					return;
+				}
+				parseResult(results.rows);
 			});
 		}
 	}

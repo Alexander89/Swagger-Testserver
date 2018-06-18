@@ -99,9 +99,11 @@ export class Session {
 					break;
 				}
 				case 'changeSession': {
+					console.log('call:' + call.data as string);
+
 					const session = server.getSession(call.data as string);
+					console.log('session' + session);
 					if (session) {
-						console.log(session.id);
 						this.socket.removeListener('message', this.messageListener);
 						this.socket.removeListener('close', this.closeListener);
 						session.assignSocket(this.socket);
@@ -149,6 +151,10 @@ export class Session {
 	}
 
 	get id(): string { return this._id; }
+
+	toString(): string {
+		return `${this.id}. Calls: ${this._sTS.getCalls().length}`;
+	}
 }
 
 export class CallSession extends Session {
@@ -198,7 +204,6 @@ export class CallSession extends Session {
 
 	private executeCall(callData: CallData, request: Http.IncomingMessage, response: Http.ServerResponse): void {
 		this._sTS.logMessage(`Execute Call ${request.method}: ${callData.callName}`, 'info', 'client');
-		// console.log(callData.call);
 		const selectedResponse = +callData.jsonData.selectedResponse;
 		const resp = callData.jsonData.returnStructures[selectedResponse];
 		response.statusCode = selectedResponse;
