@@ -1,6 +1,5 @@
 import * as S from './models/swagger/swagger';
 import { Logging } from './logging';
-import { testData } from './test';
 import { Session } from './session';
 import { MessageLvl, EventTypes, CallData, ReturnSchema } from 'test-server';
 
@@ -96,12 +95,6 @@ export class SwaggerTestServer extends Logging {
 	 * @param path URL to request the JSON definition from
 	 */
 	public setPath(path: string): Promise<void> {
-		// no Network: testing
-		return new Promise<void>((resolve, reject) => {
-			this.parseJson(testData);
-			resolve();
-		});
-
 		return new Promise<void>((resolve, reject) => {
 			fetch(path).then(v => {
 				if (!v.ok || v.status !== 200) {
