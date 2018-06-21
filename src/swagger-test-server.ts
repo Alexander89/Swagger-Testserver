@@ -2,6 +2,7 @@ import * as S from './models/swagger/swagger';
 import { Logging } from './logging';
 import { Session } from './session';
 import { MessageLvl, EventTypes, CallData, ReturnSchema } from 'test-server';
+import fetch from 'node-fetch';
 
 export class SwaggerTestServer extends Logging {
 	/** array of all pre-processed callData */
@@ -96,17 +97,20 @@ export class SwaggerTestServer extends Logging {
 	 */
 	public setPath(path: string): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
-			fetch(path).then(v => {
-				if (!v.ok || v.status !== 200) {
-					reject();
-				}
-				v.json().then(
-					def => this.parseJson(def) ? resolve() : reject()
-				).catch(() => reject());
-			}).catch(() => reject());
+			try {
+				fetch(path).then(v => {
+					if (!v.ok || v.status !== 200) {
+						reject();
+					}
+					v.json().then(
+						def => this.parseJson(def) ? resolve() : reject()
+					).catch((e) => reject(e));
+				}).catch((e) => reject(e));
+			} catch (e) {
+				reject(e);
+			}
 		});
 	}
-
 
 	/**
 	 * parse the Definition and set all additional information to work as quick as possible with the data
