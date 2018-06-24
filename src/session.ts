@@ -84,9 +84,44 @@ export class Session {
 					apiCall.jsonData = newData.config;
 					this._sTS.logMessage(`update CallData for call ${newData.callId}`, 'info', 'admin');
 					this.reply(call.command, 'ok');
-					if (this.id.match(/[a-z]{1,}/)) {
+					if (this.isPermanent) {
 						db.updateSession(this);
 					}
+					break;
+				}
+				case 'upgradeCall': {
+					const commandData = call.data as Api.UpgradeCallData;
+					// store the original calls
+					const openSts = (this._sTS as any);
+					const orgCalls = openSts._calls as Array<CallData>;
+					openSts._calls = [];
+
+					// use working function to get and parse the new path
+					this._sTS.setPath(commandData.path).then(() => {
+						const newCalls = this._sTS.getCalls();
+						openSts._calls = orgCalls;
+						// get the next free ID
+						const nextId = orgCalls.reduce((id, c) => c.id > id ? c.id : id, 0) + 1;
+						// drop the original call
+						const upgradedCalls = orgCalls.filter(c => !(c.callName === commandData.callName && c.method === commandData.method));
+						// find ne new call and add it to the upgradedCalls
+						newCalls.forEach(newCall => {
+							if (newCall.callName === commandData.callName && newCall.method === commandData.method) {
+								newCall.id = nextId;
+								upgradedCalls.push(newCall);
+							}
+						});
+						// set the new calls to the session
+						openSts._calls = upgradedCalls;
+						this.reply(call.command, 'ok', {sessionID: this._id});
+						this._sTS.logMessage(`updated session with call ${commandData.method} ${commandData.callName}`, 'info', 'server');
+						if (this.isPermanent) {
+							db.updateSession(this);
+						}
+					}).catch(() => {
+						openSts._calls = orgCalls;
+						this.reply(call.command, 'error');
+					});
 					break;
 				}
 				case 'setSessionName': {
@@ -119,9 +154,13 @@ export class Session {
 		}
 	}
 
+	get isPermanent() {
+		return this.id.match(/^[a-z]{1}[a-z0-9_-]*/i);
+	}
+
 	private onClose() {
 		// fixed sessions should not be closed
-		if (this.id.match(/[a-z]{1,}/i)) {
+		if (this.isPermanent) {
 			return;
 		}
 
