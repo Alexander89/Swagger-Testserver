@@ -31,10 +31,7 @@ export class ApiServer {
 	}
 
 	public getSession(name: string): CallSession {
-		return this.sessions.find(s => {
-			console.log(s.id + ' === ' + name);
-			return s.id === name;
-		});
+		return this.sessions.find(s => s.id === name);
 	}
 	public removeSession(name: string): boolean {
 		const session = this.getSession(name);
@@ -244,10 +241,22 @@ export class DbStorage {
 
 		const parseResult = (rows: Array<{sessionname: string, calls: string}>) => {
 			rows.forEach(row => {
-				const newSession = new CallSession(undefined) as any;
-				newSession._id = row.sessionname;
-				newSession._sTS._calls = JSON.parse(row.calls) as Array<CallData>;
-				(this.apiServer as any).sessions.push(newSession);
+				try {
+					const newSession = new CallSession(undefined) as any;
+					newSession._id = row.sessionname;
+					const replaceAll = (text: string, char: string, by: string): string => {
+						if (text.indexOf(char) === -1) {
+							return text;
+						}
+						return replaceAll(text.replace(char, by), char, by);
+					};
+					row.calls = replaceAll(row.calls, '\n', '<br>');
+					newSession._sTS._calls = JSON.parse(row.calls) as Array<CallData>;
+					(this.apiServer as any).sessions.push(newSession);
+				} catch (e) {
+					console.log(e);
+					console.log(row.calls);
+				}
 			});
 		};
 
