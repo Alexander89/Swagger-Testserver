@@ -161,15 +161,19 @@ export class DbStorage {
 				return;
 			}
 			const con = process.env.DB_Type === 'mySQL' ? this._mySQLConnection : this._pgConnection;
-			(con as any).query(
-				`INSERT INTO st_sessions (sessionname, calls) VALUES ('${session.id}', '${JSON.stringify((session as any)._sTS._calls)}');`,
-				(e: any) => {
-					if (e) {
-						return reject(e.message);
-					}
-					resolve();
+			const cmd = process.env.DB_Type === 'mySQL' ?
+				`INSERT INTO st_sessions (sessionname, calls) VALUES (?);` :
+				`INSERT INTO st_sessions (sessionname, calls) VALUES ($1, $2);`;
+			const data = process.env.DB_Type === 'mySQL' ?
+				[[session.id, JSON.stringify((session as any)._sTS._calls)]] :
+				[session.id, JSON.stringify((session as any)._sTS._calls)];
+
+			(con as any).query(cmd, data, (e: any) => {
+				if (e) {
+					return reject(e.message);
 				}
-			);
+				resolve();
+			});
 		});
 	}
 
@@ -252,10 +256,11 @@ export class DbStorage {
 					};
 					row.calls = replaceAll(row.calls, '\n', '<br>');
 					newSession._sTS._calls = JSON.parse(row.calls) as Array<CallData>;
+
+					console.log(`load session: ${newSession._id}`);
 					(this.apiServer as any).sessions.push(newSession);
 				} catch (e) {
 					console.log(e);
-					console.log(row.calls);
 				}
 			});
 		};
