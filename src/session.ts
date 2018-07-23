@@ -68,8 +68,9 @@ export class Session {
 					this.reply(call.command, 'ok', apiCall);
 					break;
 				}
-				case 'updatePath':
-				break;
+				case 'updatePath': {
+					break;
+				}
 				case 'updateCallData': {
 					const newData = call.data as Api.CommandUpdateCallData;
 					if (!this._sTS.getCalls()) {
@@ -113,7 +114,7 @@ export class Session {
 						});
 						// set the new calls to the session
 						openSts._calls = upgradedCalls;
-						this.reply(call.command, 'ok', {sessionID: this._id});
+						this.reply(call.command, 'ok', openSts.getCalls());
 						this._sTS.logMessage(`updated session with call ${commandData.method} ${commandData.callName}`, 'info', 'server');
 						if (this.isPermanent) {
 							db.updateSession(this);
