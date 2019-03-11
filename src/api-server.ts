@@ -73,8 +73,9 @@ export class ApiServer {
 			return response.end();
 		}
 		response.setHeader('access-control-allow-headers', '*');
+		response.setHeader('access-control-allow-credentials', 'true');
 		response.setHeader('access-control-allow-methods', 'GET, PUT, POST, DELETE, OPTIONS, PATCH');
-		response.setHeader('access-control-allow-origin', request.headers.Origin || '*');
+		response.setHeader('access-control-allow-origin', request.headers.origin || '*');
 		response.setHeader('cache-control', 'no-cache, private');
 		response.setHeader('content-type', 'text/html; charset=UTF-8');
 		response.setHeader('server', 'Swagger-TestServer');
